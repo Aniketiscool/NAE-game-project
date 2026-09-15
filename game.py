@@ -9,7 +9,11 @@ pygame.init()
 
 WIDTH, HEIGHT = 1280, 720
 FPS = 60
-WORLD_LENGTH = 9000
+START_X = 180
+COURSE_DISTANCE = 1000
+WORLD_DISTANCE = 3600
+FINISH_X = START_X + WORLD_DISTANCE
+WORLD_LENGTH = FINISH_X + 220
 GROUND_Y = 500
 
 SKY = (246, 194, 115)
@@ -53,7 +57,7 @@ class Vehicle:
 		self.reset()
 
 	def reset(self):
-		self.x = 180.0
+		self.x = float(START_X)
 		self.y = 400.0
 		self.velocity_x = 0.0
 		self.velocity_y = 0.0
@@ -73,9 +77,13 @@ class Vehicle:
 			acceleration += 250.0
 		if keys[pygame.K_a]:
 			acceleration -= 150.0
-		if keys[pygame.K_SPACE]:
-			acceleration += 90.0
+		if keys[pygame.K_LSHIFT] or keys[pygame.K_RSHIFT]:
+			boost_direction = -1.0 if keys[pygame.K_a] or self.velocity_x < -5 else 1.0
+			acceleration += 90.0 * boost_direction
 
+		# Uphill slopes resist motion; downhill slopes add momentum.
+		slope = (terrain_y(terrain, self.x + 24) - terrain_y(terrain, self.x - 24)) / 48
+		acceleration += max(-210.0, min(210.0, slope * 180.0))
 		self.velocity_x += acceleration * dt
 		self.velocity_x *= 0.992 ** (dt * FPS)
 		self.velocity_x = max(-130.0, min(360.0, self.velocity_x))
@@ -87,16 +95,18 @@ class Vehicle:
 		if self.y + 8 >= ground:
 			self.y = ground - 8
 			self.velocity_y = min(0.0, self.velocity_y * -0.22)
-			slope = terrain_y(terrain, self.x + 18) - terrain_y(terrain, self.x - 18)
-			target_angle = math.atan2(slope, 36)
-			self.angle += (target_angle - self.angle) * min(1.0, dt * 10)
-			self.angular_velocity = 0.0
+			target_angle = math.atan2(slope, 1.0)
+			angle_error = (target_angle - self.angle + math.pi) % math.tau - math.pi
+			self.angular_velocity += angle_error * 55.0 * dt
+			self.angular_velocity *= 0.72 ** (dt * FPS)
+			self.angle += self.angular_velocity * dt
 		else:
 			self.angle += self.angular_velocity * dt
 
 		self.fuel -= (0.7 + max(0.0, self.velocity_x) * 0.004) * dt
 		self.fuel = max(0.0, self.fuel)
-		self.distance = max(self.distance, int(self.x - 180))
+		progress = (self.x - START_X) / WORLD_DISTANCE
+		self.distance = max(0, min(COURSE_DISTANCE, int(progress * COURSE_DISTANCE)))
 
 	def draw(self, surface, camera_x):
 		body = pygame.Surface((100, 64), pygame.SRCALPHA)
@@ -131,9 +141,9 @@ class Game:
 		self.camera_x = 0.0
 		self.state = "playing"
 		self.message = ""
-		self.pickups = [x for x in range(650, WORLD_LENGTH - 250, 520)]
-		self.settlements = [x for x in range(1100, WORLD_LENGTH - 400, 1450)]
-		self.hazards = [x for x in range(900, WORLD_LENGTH - 250, 900)]
+		self.pickups = [x for x in range(700, FINISH_X - 200, 1000)]
+		self.settlements = [x for x in range(1200, FINISH_X - 100, 1450)]
+		self.hazards = [x for x in range(850, FINISH_X - 100, 700)]
 		self.collected = set()
 		self.hit_hazards = set()
 
@@ -146,7 +156,7 @@ class Game:
 		for index, pickup_x in enumerate(self.pickups):
 			if index not in self.collected and abs(self.vehicle.x - pickup_x) < 52:
 				self.collected.add(index)
-				self.vehicle.fuel = min(100.0, self.vehicle.fuel + 24.0)
+				self.vehicle.fuel = min(100.0, self.vehicle.fuel + 30.0)
 
 		for index, hazard_x in enumerate(self.hazards):
 			if index not in self.hit_hazards and abs(self.vehicle.x - hazard_x) < 34:
@@ -157,7 +167,7 @@ class Game:
 		if self.vehicle.fuel <= 0:
 			self.state = "lost"
 			self.message = "You ran out of fuel in the desert."
-		elif self.vehicle.x >= WORLD_LENGTH - 220:
+		elif self.vehicle.x >= FINISH_X:
 			self.state = "won"
 			self.message = "You crossed the desert!"
 
@@ -183,9 +193,11 @@ class Game:
 			if -30 < screen_x < WIDTH + 30:
 				index = self.pickups.index(x)
 				if index not in self.collected:
-					y = terrain_y(self.terrain, x) - 48
-					pygame.draw.circle(self.screen, (245, 190, 57), (screen_x, int(y)), 13)
-					pygame.draw.rect(self.screen, WHITE, (screen_x - 3, int(y) - 8, 6, 16))
+					y = terrain_y(self.terrain, x) - 58
+					pygame.draw.circle(self.screen, (119, 76, 35), (screen_x, int(y)), 22)
+					pygame.draw.rect(self.screen, (218, 45, 37), (screen_x - 14, int(y) - 16, 28, 32), border_radius=5)
+					pygame.draw.rect(self.screen, (157, 28, 27), (screen_x - 9, int(y) - 21, 18, 7), border_radius=2)
+					pygame.draw.rect(self.screen, (255, 116, 75), (screen_x - 9, int(y) - 11, 5, 20), border_radius=2)
 
 		for x in self.hazards:
 			screen_x = int(x - self.camera_x)
@@ -204,9 +216,9 @@ class Game:
 				pygame.draw.circle(self.screen, (50, 119, 76), (screen_x + 70, int(y - 72)), 17)
 				pygame.draw.line(self.screen, (74, 83, 43), (screen_x + 70, y - 60), (screen_x + 70, y), 5)
 
-		finish_x = int(WORLD_LENGTH - 180 - self.camera_x)
+		finish_x = int(FINISH_X - self.camera_x)
 		if -100 < finish_x < WIDTH + 100:
-			y = terrain_y(self.terrain, WORLD_LENGTH - 180)
+			y = terrain_y(self.terrain, FINISH_X)
 			pygame.draw.line(self.screen, INK, (finish_x, y - 130), (finish_x, y), 5)
 			pygame.draw.polygon(self.screen, WHITE, [(finish_x, y - 130), (finish_x + 62, y - 112), (finish_x, y - 94)])
 			draw_text(self.screen, "FINISH", (finish_x + 4, y - 164), self.small_font, INK, "midtop")
@@ -223,7 +235,7 @@ class Game:
 		fuel_color = GREEN if self.vehicle.fuel > 30 else RED
 		pygame.draw.rect(self.screen, fuel_color, (453, 61, fuel_width, 18), border_radius=4)
 		draw_text(self.screen, f"{int(self.vehicle.fuel)}%", (735, 58), self.font, INK)
-		draw_text(self.screen, "W/D drive   A brake/reverse   SPACE boost", (WIDTH - 28, 31), self.small_font, INK, "topright")
+		draw_text(self.screen, "W/D drive   A brake/reverse   SHIFT boost", (WIDTH - 28, 31), self.small_font, INK, "topright")
 
 	def draw_overlay(self):
 		if self.state == "playing":
