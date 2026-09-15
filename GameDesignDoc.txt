@@ -3,7 +3,7 @@ UAE theme: Desert Adventure
 Main character: Random Emirati guy
 Other character/objects: WIP (add a settlement that can spawn randomly)
 Game objective: Reach the end of the Desert
-Player controls: WASD, Space
+Player controls: AD, Shift
 Scoring System: distance travelled
 number of levels: 1
 Obstacles/Challenges: Dont run out of fuel

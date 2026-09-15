@@ -11,7 +11,7 @@ WIDTH, HEIGHT = 1280, 720
 FPS = 60
 START_X = 180
 COURSE_DISTANCE = 1000
-WORLD_DISTANCE = 3600
+WORLD_DISTANCE = 7200
 FINISH_X = START_X + WORLD_DISTANCE
 WORLD_LENGTH = FINISH_X + 220
 GROUND_Y = 500
@@ -73,7 +73,7 @@ class Vehicle:
 
 	def update(self, keys, terrain, dt):
 		acceleration = 0.0
-		if keys[pygame.K_d] or keys[pygame.K_w]:
+		if keys[pygame.K_d]:
 			acceleration += 250.0
 		if keys[pygame.K_a]:
 			acceleration -= 150.0
@@ -139,7 +139,7 @@ class Game:
 	def reset(self):
 		self.vehicle = Vehicle()
 		self.camera_x = 0.0
-		self.state = "playing"
+		self.state = "menu"
 		self.message = ""
 		self.pickups = [x for x in range(700, FINISH_X - 200, 1000)]
 		self.settlements = [x for x in range(1200, FINISH_X - 100, 1450)]
@@ -235,7 +235,18 @@ class Game:
 		fuel_color = GREEN if self.vehicle.fuel > 30 else RED
 		pygame.draw.rect(self.screen, fuel_color, (453, 61, fuel_width, 18), border_radius=4)
 		draw_text(self.screen, f"{int(self.vehicle.fuel)}%", (735, 58), self.font, INK)
-		draw_text(self.screen, "W/D drive   A brake/reverse   SHIFT boost", (WIDTH - 28, 31), self.small_font, INK, "topright")
+		draw_text(self.screen, "D drive   A reverse   SHIFT boost", (WIDTH - 28, 31), self.small_font, INK, "topright")
+
+	def draw_menu(self):
+		veil = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
+		veil.fill((38, 28, 24, 105))
+		self.screen.blit(veil, (0, 0))
+		draw_text(self.screen, "DESERT CLIMB", (WIDTH // 2, 150), self.large_font, (255, 221, 139), "midtop")
+		draw_text(self.screen, "RACING", (WIDTH // 2, 225), self.title_font, WHITE, "midtop")
+		pygame.draw.rect(self.screen, (255, 237, 191), (WIDTH // 2 - 205, 325, 410, 78), border_radius=12)
+		draw_text(self.screen, "PRESS ENTER TO START", (WIDTH // 2, 343), self.font, INK, "midtop")
+		draw_text(self.screen, "D drive    A reverse    SHIFT boost", (WIDTH // 2, 440), self.small_font, WHITE, "midtop")
+		draw_text(self.screen, "Cross 1000m of desert without running out of fuel", (WIDTH // 2, 475), self.small_font, WHITE, "midtop")
 
 	def draw_overlay(self):
 		if self.state == "playing":
@@ -260,14 +271,19 @@ class Game:
 				elif event.type == pygame.KEYDOWN:
 					if event.key == pygame.K_ESCAPE:
 						running = False
+					elif self.state == "menu" and event.key in (pygame.K_RETURN, pygame.K_KP_ENTER, pygame.K_SPACE):
+						self.state = "playing"
 					elif event.key == pygame.K_r and self.state != "playing":
 						self.reset()
 
 			self.update(pygame.key.get_pressed(), dt)
 			self.draw_background()
-			self.draw_world()
-			self.draw_hud()
-			self.draw_overlay()
+			if self.state == "menu":
+				self.draw_menu()
+			else:
+				self.draw_world()
+				self.draw_hud()
+				self.draw_overlay()
 			pygame.display.flip()
 
 		pygame.quit()
