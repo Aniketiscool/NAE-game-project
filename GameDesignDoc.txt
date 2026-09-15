@@ -1,0 +1,12 @@
+Title: Desert Climb Racing
+UAE theme: Desert Adventure
+Main character: Random Emirati guy
+Other character/objects: WIP (add a settlement that can spawn randomly)
+Game objective: Reach the end of the Desert
+Player controls: WASD, Space
+Scoring System: distance travelled
+number of levels: 1
+Obstacles/Challenges: Dont run out of fuel
+Win condition: Reaching the other side of the Desert
+Lose condition: Running out of fuel/ other Obstacles
+UAE heritage/value included: WIP
